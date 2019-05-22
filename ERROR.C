@@ -23,13 +23,14 @@
 
 -----------------------------------------------------------------------------*/
 
+#define _CRT_SECURE_NO_WARNINGS		/* PDP8 suppress non-secure warnings   */
 #include <windows.h>
 #include "mttty.h"
 
 /*
     Prototypes of functions called only in this module
 */
-DWORD ErrorExtender(DWORD, TCHAR **);
+DWORD ErrorExtender(DWORD, char **);
 
 
 /*-----------------------------------------------------------------------------
@@ -50,7 +51,7 @@ HISTORY:   Date:      Author:     Comment:
            10/27/95   AllenD      Wrote it
 
 -----------------------------------------------------------------------------*/
-DWORD ErrorExtender(DWORD dwError, TCHAR ** szBuffer)
+DWORD ErrorExtender(DWORD dwError, char ** szBuffer)
 {
     DWORD dwRes = 0;
 
@@ -60,7 +61,7 @@ DWORD ErrorExtender(DWORD dwError, TCHAR ** szBuffer)
                           (LPTSTR) szBuffer, 0, NULL);
 
     if (dwRes == 0) {
-        *szBuffer = LocalAlloc(LPTR, sizeof(TCHAR));
+        *szBuffer = LocalAlloc(LPTR, 1);
         return 1;
     }
 
@@ -83,11 +84,11 @@ HISTORY:   Date:      Author:     Comment:
            10/27/95   AllenD      Wrote it
 
 -----------------------------------------------------------------------------*/
-void ErrorReporter(TCHAR * szMessage)
+void ErrorReporter(char * szMessage)
 {
-    TCHAR * szFormat = _T("Error %d: %s.\n\r%s\r\n");    // format for wsprintf
-    TCHAR * szExtended;      // error string translated from error code
-    TCHAR * szFinal;         // final string to report
+    char * szFormat = "Error %d: %s.\n\r%s\r\n";    // format for wsprintf
+    char * szExtended;      // error string translated from error code
+    char * szFinal;         // final string to report
     DWORD dwExtSize;
     DWORD dwErr;
 
@@ -102,14 +103,12 @@ void ErrorReporter(TCHAR * szMessage)
         allocate buffer for error string from system, passed in string
         and extra stuff from the szFormat string
     */
-	int ilenFinal = _tcslen(szMessage) + dwExtSize  + 30 ;
-	szFinal = (TCHAR *)LocalAlloc(LPTR, ilenFinal * sizeof(TCHAR));
+    szFinal = LocalAlloc(LPTR, strlen(szMessage) + dwExtSize + 30);
 
     if (szFinal == NULL)	// if no final buffer, then can't format error
-        MessageBox(ghwndMain, _T("Cannot properly report error."), _T("Fatal Error"), MB_OK);
+        MessageBox(ghwndMain, "Cannot properly report error.", "Fatal Error", MB_OK);
     else {	
-		//int nwritten = wsprintf(szFinal, szFormat, dwErr, szMessage, szExtended);
-		int nwritten = StringCchPrintf(szFinal, ilenFinal, szFormat, dwErr, szMessage, szExtended);
+        wsprintf(szFinal, szFormat, dwErr, szMessage, szExtended);
 
         OutputDebugString(szFinal);
 
@@ -141,7 +140,7 @@ HISTORY:   Date:      Author:     Comment:
            10/27/95   AllenD      Wrote it
 
 -----------------------------------------------------------------------------*/
-void ErrorHandler(TCHAR * szMessage)
+void ErrorHandler(char * szMessage)
 {	
     ErrorReporter(szMessage);
     ExitProcess(0);
@@ -161,7 +160,7 @@ HISTORY:   Date:      Author:     Comment:
            10/27/95   AllenD      Wrote it
 
 -----------------------------------------------------------------------------*/
-void ErrorInComm(TCHAR * szMessage)
+void ErrorInComm(char * szMessage)
 {
     ErrorReporter(szMessage);
     BreakDownCommPort();

@@ -28,6 +28,7 @@
 
 -----------------------------------------------------------------------------*/
 
+#define _CRT_SECURE_NO_WARNINGS		/* PDP8 suppress non-secure warnings   */
 #include <windows.h>
 #include <string.h>
 #include <stdio.h>
@@ -63,7 +64,7 @@ void OpenStatusToolbar(HWND hWnd)
     ghWndStatusDlg = CreateDialog(ghInst, MAKEINTRESOURCE(IDD_STATUSDIALOG), hWnd, StatusDlgProc);
 
     if (ghWndStatusDlg == NULL)
-        ErrorReporter(_T("CreateDialog (Status Dialog)"));
+        ErrorReporter("CreateDialog (Status Dialog)");
 
     return;
 }
@@ -121,7 +122,9 @@ BOOL CALLBACK StatusDlgProc(HWND hWndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 {
     BOOL  fRet = FALSE;
 
-    switch(uMsg)
+	UNREFERENCED_PARAMETER( lParam );      /* PDP8 */
+	
+	switch(uMsg)
     {
         case WM_INITDIALOG:     // setup dialog with defaults
             SendMessage(GetDlgItem(hWndDlg, IDC_STATUSEDIT), WM_SETFONT, (WPARAM)ghFontStatus, 0);
@@ -186,7 +189,7 @@ void InitStatusMessage()
     GetSystemInfo(&SysInfo);
     ghStatusMessageHeap = HeapCreate(0, SysInfo.dwPageSize, 0);
     if (ghStatusMessageHeap == NULL)
-        ErrorReporter(_T("HeapCreate (Status message)"));
+        ErrorReporter("HeapCreate (Status message)");
 
     glpStatusMessageHead = HeapAlloc(ghStatusMessageHeap, HEAP_ZERO_MEMORY, sizeof(STATUS_MESSAGE));
     glpStatusMessageTail = glpStatusMessageHead;
@@ -198,7 +201,7 @@ void InitStatusMessage()
         This won't show up until the ReaderAndStatusProc function
         is called when the threads are created after the port is connected.
     */
-    UpdateStatus(_T("Status message go here:\r\n"));
+    UpdateStatus("Status message go here:\r\n");
 
     return;
 }
@@ -265,7 +268,7 @@ void StatusMessage()
                             0, (LPARAM) ((LPSTR) &(lpStatusMessage->chMessageStart)),
                             SMTO_NORMAL | SMTO_ABORTIFHUNG, 
                             500, &dwRes);
-        gnStatusIndex += _tcslen(&(lpStatusMessage->chMessageStart));
+        gnStatusIndex += strlen(&(lpStatusMessage->chMessageStart));
 
         //
         // Update status message linked list
@@ -280,7 +283,7 @@ void StatusMessage()
         LeaveCriticalSection(&gStatusCritical);
 
         if (!bRes)
-            ErrorReporter(_T("HeapFree (status message)"));
+            ErrorReporter("HeapFree (status message)");
     }
 
     return;
@@ -304,37 +307,37 @@ HISTORY:   Date:      Author:     Comment:
            11/21/95   AllenD      Modified to use a status message heap
 
 -----------------------------------------------------------------------------*/
-void UpdateStatus(TCHAR * szText)
+void UpdateStatus(char * szText)
 {
-    TCHAR * szNewMsg;
+    char * szNewMsg;
     DWORD dwSize;
     STATUS_MESSAGE * lpStatusMessage;
-    static dwMessageCounter = 0;
+    static DWORD dwMessageCounter = 0;      /* PDP8 */
 
     dwMessageCounter++;
 
-    dwSize = _tcslen(szText) + 30;    // include NULL terminator and space for counter
+    dwSize = strlen(szText) + 30;    // include NULL terminator and space for counter
 
     EnterCriticalSection(&gStatusCritical);
 
     szNewMsg = HeapAlloc(ghStatusMessageHeap, 0, dwSize+30);
     if (szNewMsg == NULL) {
         LeaveCriticalSection(&gStatusCritical);
-        ErrorReporter(_T("HeapAlloc (status message)"));
+        ErrorReporter("HeapAlloc (status message)");
         return;
     }
     else {
-        wsprintf(szNewMsg, _T("%d:%s"), dwMessageCounter, szText);
-        if (_tcslen(szNewMsg) > dwSize) {
+        wsprintf(szNewMsg, "%d:%s", dwMessageCounter, szText);
+        if (strlen(szNewMsg) > dwSize) {
             LeaveCriticalSection(&gStatusCritical);
-            ErrorInComm(_T("Heap Corruption in UpdateStatus\n"));
+            ErrorInComm("Heap Corruption in UpdateStatus\n");
         }
     }
 
     lpStatusMessage = HeapAlloc(ghStatusMessageHeap, 0, sizeof(LPSTR) + dwSize );
     if (lpStatusMessage == NULL) {
         LeaveCriticalSection(&gStatusCritical);
-        ErrorReporter(_T("HeapAlloc (status message)"));
+        ErrorReporter("HeapAlloc (status message)");
         return ;
     }
       
@@ -412,7 +415,7 @@ void CheckModemStatus( BOOL bUpdateNow )
     DWORD dwNewModemStatus;
 
     if (!GetCommModemStatus(COMDEV(TTYInfo), &dwNewModemStatus))
-        ErrorReporter(_T("GetCommModemStatus"));
+        ErrorReporter("GetCommModemStatus");
 
     //
     // Report status if bUpdateNow is true or status has changed
@@ -484,7 +487,7 @@ void CheckComStat(BOOL bUpdateNow)
     BOOL bReport = bUpdateNow;
 
     if (!ClearCommError(COMDEV(TTYInfo), &dwErrors, &ComStatNew))
-        ErrorReporter(_T("ClearCommError"));
+        ErrorReporter("ClearCommError");
 
     if (dwErrors != dwErrorsOld) {
         bReport = TRUE;
@@ -524,13 +527,13 @@ void ReportCommError()
     DWORD   dwErrors;
     BOOL    fOOP, fOVERRUN, fPTO, fRXOVER, fRXPARITY, fTXFULL;
     BOOL    fBREAK, fDNS, fFRAME, fIOE, fMODE;
-    TCHAR    szMessage[100];
+    char    szMessage[100];
 
     //
     // Get and clear current errors on the port
     //
     if (!ClearCommError(COMDEV(TTYInfo), &dwErrors, &comStat))
-        ErrorReporter(_T("ClearCommError"));
+        ErrorReporter("ClearCommError");
 
     //
     // get error flags
@@ -550,20 +553,20 @@ void ReportCommError()
     //
     // create error string
     //
-    _tcscpy_s(szMessage, 100, _T("ERROR: "));
-    _tcscat_s(szMessage, 100, fDNS ? _T("DNS ") : _T(""));
-    _tcscat_s(szMessage, 100, fIOE ? _T("IOE ") : _T(""));
-    _tcscat_s(szMessage, 100, fOOP ? _T("OOP ") : _T(""));
-    _tcscat_s(szMessage, 100, fPTO ? _T("PTO ") : _T(""));
-    _tcscat_s(szMessage, 100, fMODE ? _T("MODE ") : _T(""));
-    _tcscat_s(szMessage, 100, fBREAK ? _T("BREAK ") : _T(""));
-    _tcscat_s(szMessage, 100, fFRAME ? _T("FRAME ") : _T(""));
-    _tcscat_s(szMessage, 100, fRXOVER ? _T("RXOVER ") : _T(""));
-    _tcscat_s(szMessage, 100, fTXFULL ? _T("TXFULL ") : _T(""));
-    _tcscat_s(szMessage, 100, fOVERRUN ? _T("OVERRUN ") : _T(""));
-    _tcscat_s(szMessage, 100, fRXPARITY ? _T("RXPARITY ") : _T(""));
+    strcpy(szMessage, "ERROR: ");
+    strcat(szMessage, fDNS ? "DNS " : "");
+    strcat(szMessage, fIOE ? "IOE " : "");
+    strcat(szMessage, fOOP ? "OOP " : "");
+    strcat(szMessage, fPTO ? "PTO " : "");
+    strcat(szMessage, fMODE ? "MODE " : "");
+    strcat(szMessage, fBREAK ? "BREAK " : "");
+    strcat(szMessage, fFRAME ? "FRAME " : "");
+    strcat(szMessage, fRXOVER ? "RXOVER " : "");
+    strcat(szMessage, fTXFULL ? "TXFULL " : "");
+    strcat(szMessage, fOVERRUN ? "OVERRUN " : "");
+    strcat(szMessage, fRXPARITY ? "RXPARITY " : "");
 
-    _tcscat_s(szMessage, 100, _T("\r\n"));
+    strcat(szMessage, "\r\n");
 
     //
     // if there really were errors, then report them
@@ -580,33 +583,33 @@ void ReportCommError()
     // Show COMSTAT structure with the error indicator
     //
     if (comStat.fCtsHold)
-        UpdateStatus(_T("Tx waiting for CTS signal.\r\n"));
+        UpdateStatus("Tx waiting for CTS signal.\r\n");
 
     if (comStat.fDsrHold)
-        UpdateStatus(_T("Tx waiting for DSR signal.\r\n"));
+        UpdateStatus("Tx waiting for DSR signal.\r\n");
 
     if (comStat.fRlsdHold)
-        UpdateStatus(_T("Tx waiting for RLSD signal.\r\n"));
+        UpdateStatus("Tx waiting for RLSD signal.\r\n");
 
     if (comStat.fXoffHold)
-        UpdateStatus(_T("Tx waiting, XOFF char rec'd.\r\n"));
+        UpdateStatus("Tx waiting, XOFF char rec'd.\r\n");
 
     if (comStat.fXoffSent)
-        UpdateStatus(_T("Tx waiting, XOFF char sent.\r\n"));
+        UpdateStatus("Tx waiting, XOFF char sent.\r\n");
     
     if (comStat.fEof)
-        UpdateStatus(_T("EOF character received.\r\n"));
+        UpdateStatus("EOF character received.\r\n");
     
     if (comStat.fTxim)
-        UpdateStatus(_T("Character waiting for Tx.\r\n"));
+        UpdateStatus("Character waiting for Tx.\r\n");
 
     if (comStat.cbInQue) {
-        wsprintf(szMessage, _T("%d bytes in input buffer.\r\n"), comStat.cbInQue);
+        wsprintf(szMessage, "%d bytes in input buffer.\r\n", comStat.cbInQue);
         UpdateStatus(szMessage);
     }
 
     if (comStat.cbOutQue) {
-        wsprintf(szMessage, _T("%d bytes in output buffer.\r\n"), comStat.cbOutQue);
+        wsprintf(szMessage, "%d bytes in output buffer.\r\n", comStat.cbOutQue);
         UpdateStatus(szMessage);
     }
 
@@ -636,7 +639,7 @@ void ReportStatusEvent(DWORD dwStatus)
 {
     BOOL fRING, fRLSD, fRXCHAR, fRXFLAG, fTXEMPTY;
     BOOL fBREAK, fCTS, fDSR, fERR;
-    TCHAR szMessage[70];
+    char szMessage[70];
 
     //
     // Get status event flags.
@@ -655,25 +658,25 @@ void ReportStatusEvent(DWORD dwStatus)
         Construct status message indicating the 
         status event flags that are set.
     */
-    _tcscpy_s(szMessage, 70, _T("EVENT: "));
-    _tcscat_s(szMessage, 70, fCTS ? _T("CTS ") : _T(""));
-    _tcscat_s(szMessage, 70, fDSR ? _T("DSR ") : _T(""));
-    _tcscat_s(szMessage, 70, fERR ? _T("ERR ") : _T(""));
-    _tcscat_s(szMessage, 70, fRING ? _T("RING ") : _T(""));
-    _tcscat_s(szMessage, 70, fRLSD ? _T("RLSD ") : _T(""));
-    _tcscat_s(szMessage, 70, fBREAK ? _T("BREAK ") : _T(""));
-    _tcscat_s(szMessage, 70, fRXFLAG ? _T("RXFLAG ") : _T(""));
-    _tcscat_s(szMessage, 70, fRXCHAR ? _T("RXCHAR ") : _T(""));
-    _tcscat_s(szMessage, 70, fTXEMPTY ? _T("TXEMPTY ") : _T(""));
+    strcpy(szMessage, "EVENT: ");
+    strcat(szMessage, fCTS ? "CTS " : "");
+    strcat(szMessage, fDSR ? "DSR " : "");
+    strcat(szMessage, fERR ? "ERR " : "");
+    strcat(szMessage, fRING ? "RING " : "");
+    strcat(szMessage, fRLSD ? "RLSD " : "");
+    strcat(szMessage, fBREAK ? "BREAK " : "");
+    strcat(szMessage, fRXFLAG ? "RXFLAG " : "");
+    strcat(szMessage, fRXCHAR ? "RXCHAR " : "");
+    strcat(szMessage, fTXEMPTY ? "TXEMPTY " : "");
 
     /*
         If dwStatus == NULL, then no status event flags are set.
         This happens when the event flag is changed with SetCommMask.
     */
     if (dwStatus == 0x0000)
-        _tcscat_s(szMessage, 70, _T("NULL"));
+        strcat(szMessage, "NULL");
 
-    _tcscat_s(szMessage, 70, _T("\r\n"));
+    strcat(szMessage, "\r\n");
 
     //
     // Queue the status message for the status control

@@ -21,12 +21,12 @@
 //
 // hard coded maximum number of ports
 //
-#define MAXPORTS        4
+#define MAXPORTS        9	/* PDP8 */
 
 //
 // terminal size
 //
-#define MAXROWS         50
+#define MAXROWS         10000	/* PDP8 */
 #define MAXCOLS         80
 
 //
@@ -52,13 +52,14 @@ struct TTYInfoStruct
 {
     HANDLE  hCommPort, hReaderStatus, hWriter ;
     DWORD   dwEventFlags;
-    TCHAR   Screen[MAXCOLS * MAXROWS];
+    CHAR    Screen[MAXCOLS * MAXROWS];
     CHAR    chFlag, chXON, chXOFF;
     WORD    wXONLimit, wXOFFLimit;
     DWORD   fRtsControl;
     DWORD   fDtrControl;
     BOOL    fConnected, fTransferring, fRepeating,
-            fLocalEcho, fNewLine, fCR2CRLF,
+			fPdp8Msb,									/* PDP8  */
+			fLocalEcho, fNewLine,
             fDisplayErrors, fAutowrap,
             fCTSOutFlow, fDSROutFlow, fDSRInFlow, 
             fXonXoffOutFlow, fXonXoffInFlow,
@@ -90,7 +91,6 @@ struct TTYInfoStruct
 #define REPEATING( x )      (x.fRepeating)
 #define LOCALECHO( x )      (x.fLocalEcho)
 #define NEWLINE( x )        (x.fNewLine)
-#define CR2CRLF( x )        (x.fCR2CRLF)
 #define AUTOWRAP( x )       (x.fAutowrap)
 #define BYTESIZE( x )       (x.bByteSize)
 #define PARITY( x )         (x.bParity)
@@ -109,6 +109,7 @@ struct TTYInfoStruct
 #define ROW( x )            (x.nRow)
 #define XCHAR( x )          (x.xChar)
 #define YCHAR( x )          (x.yChar)
+#define PDP8MSB( x )	    (x.fPdp8Msb)		/* PDP8 */
 #define DISPLAYERRORS( x )  (x.fDisplayErrors)
 #define TIMEOUTSORIG( x )   (x.timeoutsorig)
 #define TIMEOUTSNEW( x )    (x.timeoutsnew)

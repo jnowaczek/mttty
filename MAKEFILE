@@ -41,9 +41,9 @@ $(PROJ).res: $(PROJ).rc $(RC_DEP)
 # Build rule for EXE
 $(PROJ).EXE: $(PROJ_OBJS) $(PROJ).res
     $(link) $(linkdebug) $(guilflags) \
+    /NODEFAULTLIB:LIBCMTD \
     $(PROJ_OBJS) $(PROJ).res $(STD_LIBS) $(EXTRA_LIBS) \
     -out:$(PROJ).exe
-
 
 # Rules for cleaning out those old files
 clean:

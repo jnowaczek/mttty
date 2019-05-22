@@ -19,6 +19,7 @@
 
 -----------------------------------------------------------------------------*/
 
+#define _CRT_SECURE_NO_WARNINGS		/* PDP8 suppress non-secure warnings   */
 #include <windows.h>
 #include <commctrl.h>
 
@@ -32,7 +33,7 @@ void OutputABufferToFile( HANDLE, char *, DWORD );
 
 /*-----------------------------------------------------------------------------
 
-FUNCTION: OutputABufferToWindow(HWND, TCHAR *, DWORD)
+FUNCTION: OutputABufferToWindow(HWND, char *, DWORD)
 
 PURPOSE: Updates TTY Buffer with characters just received.
 
@@ -56,9 +57,10 @@ void OutputABufferToWindow(HWND hTTY, char * lpBuf, DWORD dwBufLen)
         for special characters
     */
     int i;
-	TCHAR t_ch;
 
-	for ( i = 0 ; i < (int) dwBufLen; i++) {
+    for ( i = 0 ; i < (int) dwBufLen; i++) {
+	if (PDP8MSB(TTYInfo))       /* PDP8   */
+            lpBuf[i] &= 0x7F;       /* PDP8 clear MSB   */
         switch (lpBuf[ i ]) {
             case ASCII_BEL:                // BELL CHAR
                 MessageBeep( 0 ) ;
@@ -83,28 +85,16 @@ void OutputABufferToWindow(HWND hTTY, char * lpBuf, DWORD dwBufLen)
                 {
                     MoveMemory( (LPSTR) (SCREEN( TTYInfo )),
                                   (LPSTR) (SCREEN( TTYInfo ) + MAXCOLS),
-                                  (MAXROWS - 1) * MAXCOLS * sizeof(TCHAR) ) ;
-					int r, c;
-					for (r = MAXROWS - 1; r < MAXROWS; r++) {
-						for (c = 0; c < MAXCOLS; c++) {
-							SCREENCHAR(TTYInfo, c, r) =  ' ';
-						}
-					}
-                    //FillMemory((LPSTR) (SCREEN( TTYInfo ) + (MAXROWS - 1) * MAXCOLS),
-                    //              MAXCOLS,  ' ' ) ;
+                                  (MAXROWS - 1) * MAXCOLS ) ;
+                    FillMemory((LPSTR) (SCREEN( TTYInfo ) + (MAXROWS - 1) * MAXCOLS),
+                                  MAXCOLS,  ' ' ) ;
                     InvalidateRect( hTTY, NULL, FALSE ) ;
                     ROW( TTYInfo )-- ;
                 }
-				// handle LF with no CR if button is checked.
-				if CR2CRLF(TTYInfo) {
-					COLUMN(TTYInfo) = 0;
-				}
                 break ;
 
             default:                       // standard character
-				
-				t_ch = lpBuf[i];
-                SCREENCHAR(TTYInfo, COLUMN(TTYInfo), ROW(TTYInfo)) = t_ch;
+                SCREENCHAR(TTYInfo, COLUMN(TTYInfo), ROW(TTYInfo)) = lpBuf[ i ];
 
                 rect.left = (COLUMN( TTYInfo ) * XCHAR( TTYInfo )) -
                             XOFFSET( TTYInfo ) ;
@@ -132,7 +122,7 @@ void OutputABufferToWindow(HWND hTTY, char * lpBuf, DWORD dwBufLen)
 
 /*-----------------------------------------------------------------------------
 
-FUNCTION: OutputABufferToFile(HANDLE, TCHAR *, DWORD)
+FUNCTION: OutputABufferToFile(HANDLE, char *, DWORD)
 
 PURPOSE: Output a rec'd buffer to a file
 
@@ -153,10 +143,10 @@ void OutputABufferToFile(HANDLE hFile, char * lpBuf, DWORD dwBufLen)
     // place buffer into file, report any errors
     //
     if (!WriteFile(hFile, lpBuf, dwBufLen, &dwWritten, NULL))
-        ErrorReporter(_T("WriteFile in file capture"));
+        ErrorReporter("WriteFile in file capture");
 
     if (dwBufLen != dwWritten)
-        ErrorReporter(_T("WriteFile"));
+        ErrorReporter("WriteFile");
     
     //
     // update transfer progress bar
@@ -186,7 +176,7 @@ HISTORY:   Date:      Author:     Comment:
 void OutputABuffer(HWND hTTY, char * lpBuf, DWORD dwBufLen)
 {
     if (dwBufLen == 0) {
-        OutputDebugString(_T("NULL Buffer in OutputABuffer\n\r"));
+        OutputDebugString("NULL Buffer in OutputABuffer\n\r");
         return;
     }
 
@@ -198,10 +188,11 @@ void OutputABuffer(HWND hTTY, char * lpBuf, DWORD dwBufLen)
 
         case RECEIVE_CAPTURED:
             OutputABufferToFile(ghFileCapture, lpBuf, dwBufLen);
+            OutputABufferToWindow(hTTY, lpBuf, dwBufLen);       /* PDP8 */
             break;
 
         default:
-            OutputDebugString(_T("Unknown receive state!\n\r"));
+            OutputDebugString("Unknown receive state!\n\r");
     }
 
     return;

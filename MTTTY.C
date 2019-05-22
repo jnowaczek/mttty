@@ -11,6 +11,17 @@
 
     PURPOSE: Program entry point and window management
 
+
+    Modified for use with PDP-8 serial.
+        defaults to COM1, 19200 baud, 8 bits, no parity, 2 stop
+        COM1 thru COM9
+        if 'PDP8MSB' is set,
+	   sets      MSB for keyboard-to-PDP8
+           strips    MSB for PDP8-to-display
+        always preserves MSB for PDP8-to-file
+        different font and font size
+        changes to compile without warnings (-W4)
+
     FUNCTIONS:
         WinMain            - Program entry point
         VersionCheck       - Checks OS version to make sure we can run
@@ -30,6 +41,7 @@
 
 -----------------------------------------------------------------------------*/
 
+#define _CRT_SECURE_NO_WARNINGS         /* PDP8 suppress non-secure warnings    */
 #include <windows.h>
 #include "mttty.h"
 
@@ -71,15 +83,21 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 {
     MSG msg;
 
+	UNREFERENCED_PARAMETER( hPrevInstance );   /* PDP8 */
+	UNREFERENCED_PARAMETER( lpCmdLine );       /* PDP8 */
+
     if (!VersionCheck()) {
-        MessageBox(NULL, _T("MTTTY can't run on this version of Windows."), NULL, MB_OK);
+        MessageBox(NULL, "MTTTY can't run on this version of Windows.", NULL, MB_OK);
         return 0;
     }
 
     if (!InitializeApp(hInstance, nShowCmd)) {
-        MessageBox(NULL, _T("MTTTY couldn't start!"), NULL, MB_OK);
+        MessageBox(NULL, "MTTTY couldn't start!", NULL, MB_OK);
         return 0;
     }
+
+    CmdDispatch(ID_FILE_CONNECT, ghwndMain, 0);    /* PDP* connect */
+
 
     while (GetMessage(&msg, NULL, 0, 0)) {
         if (!TranslateAccelerator( ghwndMain, ghAccel, &msg )) {
@@ -108,15 +126,14 @@ HISTORY:   Date:      Author:     Comment:
 -----------------------------------------------------------------------------*/
 BOOL VersionCheck()
 {
-#ifdef CAN_USE_GETVERSIONINFOEX
     gOSV.dwOSVersionInfoSize = sizeof(gOSV);
     if (!GetVersionEx(&gOSV))
         return FALSE;
 
     if (gOSV.dwPlatformId == VER_PLATFORM_WIN32s)
         return FALSE;
-#endif
-	return TRUE;
+
+    return TRUE ;
 }
 
 
@@ -154,7 +171,7 @@ BOOL InitializeApp(HINSTANCE hInst, int nShowCmd)
     wc.hCursor          = LoadCursor(NULL, IDC_ARROW);
     wc.lpszMenuName     = MAKEINTRESOURCE(IDR_MTTTYMENU);
     wc.hbrBackground    = (HBRUSH) (COLOR_WINDOW + 1) ;
-    wc.lpszClassName    = _T("MTTTYClass");
+    wc.lpszClassName    = "MTTTYClass";
 
     if (!RegisterClass(&wc)) {
         GlobalCleanup();
@@ -168,7 +185,7 @@ BOOL InitializeApp(HINSTANCE hInst, int nShowCmd)
     wc.hInstance        = hInst;
     wc.hCursor          = LoadCursor(NULL, IDC_IBEAM);
     wc.hbrBackground    = (HBRUSH) (COLOR_WINDOW + 1);
-    wc.lpszClassName    = _T("MTTTYChildClass");
+    wc.lpszClassName    = "MTTTYChildClass";
     wc.lpszMenuName     = NULL;
     wc.hIcon            = NULL;
 
@@ -180,7 +197,7 @@ BOOL InitializeApp(HINSTANCE hInst, int nShowCmd)
     //
     // create main window
     //
-    ghwndMain = CreateWindow(_T("MTTTYClass"), _T("Multi-threaded TTY"),
+    ghwndMain = CreateWindow("MTTTYClass", "Multi-threaded TTY for UMD PDP-12",   /* PDP8 */ 
             WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN,
             STARTXWINDOW, STARTYWINDOW,
             MAXXWINDOW, MAXYWINDOW,
@@ -347,7 +364,7 @@ HISTORY:   Date:      Author:     Comment:
 -----------------------------------------------------------------------------*/
 void CmdDispatch(int iMenuChoice, HWND hwnd, LPARAM lParam)
 {
-    static TCHAR szFileName[MAX_PATH] = {0};
+    static char szFileName[MAX_PATH] = {0};
 
     switch (iMenuChoice) 
     {
@@ -357,7 +374,9 @@ void CmdDispatch(int iMenuChoice, HWND hwnd, LPARAM lParam)
 
         case ID_TRANSFER_SENDFILETEXT:
             {
-                TCHAR * szFilter = _T("Text Files\0*.TXT\0");
+                char * szFilter =   "Binary Files *pb,*pm,*.pb,*.pm,*.bin,*.rim\0*pb;*pm;*pm;*.pb;*.pm;*.bin;*.rim\0"               /* PDP8 */
+                                    "Text Files *.pa*,*.txt\0*.pa*;*.txt\0"                               /* PDP8 */
+                                    "All Files\0*.*\0";
                 OPENFILENAME ofn = {0};
 
                 ofn.lStructSize = sizeof(OPENFILENAME);
@@ -365,20 +384,22 @@ void CmdDispatch(int iMenuChoice, HWND hwnd, LPARAM lParam)
                 ofn.lpstrFilter = szFilter;
                 ofn.lpstrFile = szFileName;
                 ofn.nMaxFile = MAX_PATH;
-                ofn.lpstrTitle = _T("Send File");
+                ofn.lpstrTitle = "Send File";
                 ofn.Flags = OFN_FILEMUSTEXIST;
 
                 if (!GetOpenFileName(&ofn))
                     break;
                 
-                if (TRUE)
+                /* PDP8 if (TRUE)   */
                     TransferFileTextStart(szFileName);
             }
             break;
 
         case ID_TRANSFER_RECEIVEFILETEXT:
             {
-                TCHAR * szFilter = _T("Text Files\0*.TXT\0");
+                char * szFilter =   "Binary Files *pb,*pm,*.pb,*.pm,*.bin,*.rim\0*pb;*pm;*pm;*.pb;*.pm;*.rim;*.bin\0"               /* PDP8 */
+                                    "Text Files *.txt\0*.txt\0"
+                                    "All Files\0*.*\0";
                 OPENFILENAME ofn = {0};
 
                 ofn.lStructSize = sizeof(OPENFILENAME);
@@ -386,7 +407,7 @@ void CmdDispatch(int iMenuChoice, HWND hwnd, LPARAM lParam)
                 ofn.lpstrFilter = szFilter;
                 ofn.lpstrFile = szFileName;
                 ofn.nMaxFile = MAX_PATH;
-                ofn.lpstrTitle = _T("Receive File");
+                ofn.lpstrTitle = "Receive File";
                 ofn.Flags = OFN_OVERWRITEPROMPT;
 
                 if (!GetSaveFileName(&ofn))
@@ -417,7 +438,9 @@ void CmdDispatch(int iMenuChoice, HWND hwnd, LPARAM lParam)
         case ID_TRANSFER_SENDREPEATEDLY:
             {
                 DWORD dwFreq;
-                TCHAR * szFilter = _T("Text Files\0*.TXT\0");
+                char * szFilter =   "Binary Files *pb,*pm,*.pb,*.pm,*.bin\0*pb;*pm;*pm;*.pb;*.pm;*.bin\0"		/* PDP8 */
+                                    "Text Files *.txt\0*.txt\0"
+                                    "All Files\0*.*\0";
                 OPENFILENAME ofn = {0};
 
                 ofn.lStructSize = sizeof(OPENFILENAME);
@@ -425,7 +448,7 @@ void CmdDispatch(int iMenuChoice, HWND hwnd, LPARAM lParam)
                 ofn.lpstrFilter = szFilter;
                 ofn.lpstrFile = szFileName;
                 ofn.nMaxFile = MAX_PATH;
-                ofn.lpstrTitle = _T("Send File Repeatedly");
+                ofn.lpstrTitle = "Send File Repeatedly";
                 ofn.Flags = OFN_FILEMUSTEXIST;
 
                 if (!GetOpenFileName(&ofn))
@@ -489,13 +512,13 @@ HISTORY:   Date:      Author:     Comment:
 /*-----------------------------------------------------------------------------*/
 void OpenTTYChildWindow(HWND hWnd)
 {
-    ghWndTTY = CreateWindow(_T("MTTTYChildClass"), _T("TTY Window"),
+    ghWndTTY = CreateWindow( "MTTTYChildClass", "TTY Window", 
                              WS_CHILD | WS_VISIBLE | WS_VSCROLL,
                              0,0,
                              0,0,
                              hWnd, (HMENU)ID_TTYWINDOW, ghInst, NULL);
     if (ghWndTTY == NULL)
-        ErrorReporter(_T("Can't Create TTY Child Window"));
+        ErrorReporter("Can't Create TTY Child Window");
 
     return;
 }
@@ -553,6 +576,7 @@ BOOL NEAR ScrollTTYVert( HWND hWnd, WORD wScrollCmd, WORD wScrollPos )
          break ;
 
       case SB_THUMBPOSITION:
+      case SB_THUMBTRACK:       /* PDP8 */
          nScrollAmt = wScrollPos - YOFFSET( TTYInfo ) ;
          break ;
 
@@ -628,6 +652,7 @@ BOOL NEAR ScrollTTYHorz( HWND hWnd, WORD wScrollCmd, WORD wScrollPos )
          break ;
 
       case SB_THUMBPOSITION:
+      case SB_THUMBTRACK:       /* PDP8 */
          nScrollAmt = wScrollPos - XOFFSET( TTYInfo ) ;
          break ;
 
@@ -707,7 +732,7 @@ BOOL NEAR PaintTTY( HWND hWnd )
       rect.right = nHorzPos + XCHAR( TTYInfo ) * nCount ;
       SetBkMode( hDC, OPAQUE ) ;
       ExtTextOut( hDC, nHorzPos, nVertPos, ETO_OPAQUE | ETO_CLIPPED, &rect,
-                  (LPCTSTR)( SCREEN( TTYInfo ) + nRow * MAXCOLS + nCol ),
+                  (LPSTR)( SCREEN( TTYInfo ) + nRow * MAXCOLS + nCol ),
                   nCount, NULL ) ;
    }
    SelectObject( hDC, hOldFont ) ;
@@ -734,6 +759,8 @@ BOOL NEAR PaintTTY( HWND hWnd )
 //---------------------------------------------------------------------------
 BOOL NEAR MoveTTYCursor( HWND hWnd )
 {
+   UNREFERENCED_PARAMETER( hWnd );      /* PDP8 */
+
    if (CONNECTED( TTYInfo ) && (CURSORSTATE( TTYInfo ) & CS_SHOW))
       SetCaretPos( (COLUMN( TTYInfo ) * XCHAR( TTYInfo )) -
                    XOFFSET( TTYInfo ),
@@ -826,6 +853,8 @@ BOOL NEAR SizeTTY( HWND hWnd, WORD wWidth, WORD wHeight )
 {
    int nScrollAmt ;
 
+   UNREFERENCED_PARAMETER( wWidth );    /* PDP8 */
+
    //
    // adjust vert settings
    //
@@ -902,11 +931,19 @@ int WINAPI TTYChildProc(HWND hWnd, UINT uMessage, WPARAM wParam, LPARAM lParam)
                 //
                 if (CONNECTED(TTYInfo)) {
 
-                    if (!WriterAddNewNode(WRITE_CHAR, 0, (TCHAR) wParam, NULL, NULL, NULL))
+                    if (PDP8MSB(TTYInfo))	/* PDP8						*/
+					{						/* PDP8						*/
+						if (wParam == 0x07)	/* PDP8	is it backspace?	*/
+						{					/* PDP8						*/
+							wParam = 0x7F;	/* PDP8 make it DEL			*/
+						}
+						wParam |= 0x80;		/* PDP8 set MSB				*/
+					}
+                    if (!WriterAddNewNode(WRITE_CHAR, 0, (char) wParam, NULL, NULL, NULL))
                         return FALSE;
 
                     if (LOCALECHO(TTYInfo))
-                        OutputABufferToWindow(ghWndTTY, (char *) &wParam, 1);
+                        OutputABufferToWindow(ghWndTTY, (CHAR *) &wParam, 1);
                 }
             }
             break;

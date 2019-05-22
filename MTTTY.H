@@ -17,8 +17,7 @@
 //
 // File: MTTTY.h
 //
-#include <TCHAR.H>
-#include "strsafe.h"
+
 #include "resource.h"
 #include "ttyinfo.h"
 
@@ -33,7 +32,8 @@
 #define STATUS_CHECK_TIMEOUT    500
 #define WRITE_CHECK_TIMEOUT     500
 #define PURGE_FLAGS             PURGE_TXABORT | PURGE_TXCLEAR | PURGE_RXABORT | PURGE_RXCLEAR 
-#define EVENTFLAGS_DEFAULT      EV_BREAK | EV_CTS | EV_DSR | EV_ERR | EV_RING | EV_RLSD
+//#define EVENTFLAGS_DEFAULT      EV_BREAK | EV_CTS | EV_DSR | EV_ERR | EV_RING | EV_RLSD
+#define EVENTFLAGS_DEFAULT      EV_BREAK | EV_ERR       /* PDP8 */
 #define FLAGCHAR_DEFAULT        '\n'
 
 //
@@ -60,7 +60,7 @@
 #define STARTXWINDOW        80
 #define STARTYWINDOW        70
 
-#define SETTINGSFACTOR      6
+#define SETTINGSFACTOR      5
 #define STATUSFACTOR        5
 
 //
@@ -71,9 +71,7 @@
 //
 // GLOBAL VARIABLES
 //
-#ifdef CAN_USE_GETVERSIONINFOEX
 OSVERSIONINFO gOSV;
-#endif
 HINSTANCE     ghInst;
 HACCEL        ghAccel;
 HWND          ghwndMain;
@@ -115,20 +113,22 @@ HANDLE ghStatusMessageHeap;
 HFONT ghFontStatus;
 int   gnStatusIndex;
 
-
-typedef struct STATUS_MESSAGE
-{
-    struct STATUS_MESSAGE * lpNext;     // pointer to next node
-    TCHAR chMessageStart;                // variable length string start here
-} STATUS_MESSAGE;
+typedef struct STATUS_MESSAGE;
 
 struct STATUS_MESSAGE * glpStatusMessageHead;
 struct STATUS_MESSAGE * glpStatusMessageTail;
 
+typedef struct STATUS_MESSAGE
+{
+    struct STATUS_MESSAGE * lpNext;     // pointer to next node
+    char chMessageStart;                // variable length string start here
+} STATUS_MESSAGE;
+
+
 //
 //  Port name
 //
-TCHAR gszPort[10];
+char gszPort[10];
 
 //
 //  Writer heap variables
@@ -142,17 +142,17 @@ HANDLE ghTransferCompleteEvent;
 //
 //  Write request data structure; look in Writer.c for more info
 //
-struct WRITEREQUEST;
+typedef struct WRITEREQUEST;
 
 struct WRITEREQUEST *gpWriterHead;
 struct WRITEREQUEST *gpWriterTail;
 
 typedef struct WRITEREQUEST
 {
-  DWORD      dwWriteType;        // TCHAR, file start, file abort, file packet
+  DWORD      dwWriteType;        // char, file start, file abort, file packet
   DWORD      dwSize;             // size of buffer
-  TCHAR       ch;                 // ch to send
-  TCHAR *     lpBuf;              // address of buffer to send
+  char       ch;                 // ch to send
+  char *     lpBuf;              // address of buffer to send
   HANDLE     hHeap;              // heap containing buffer
   HWND       hWndProgress;       // status bar window handle
   struct WRITEREQUEST *pNext;    // next node in the list
@@ -167,9 +167,9 @@ typedef struct WRITEREQUEST
 //
 //  Error functions
 //
-void ErrorReporter( TCHAR * szMessage );
-void ErrorHandler( TCHAR * szMessage );
-void ErrorInComm( TCHAR * szMessage );
+void ErrorReporter( char * szMessage );
+void ErrorHandler( char * szMessage );
+void ErrorInComm( char * szMessage );
 
 //
 //  Initialization/deinitialization/settings functions
@@ -211,9 +211,9 @@ DWORD WINAPI WriterProc( LPVOID );
 //  File transfer functions
 //
 void CALLBACK TransferRepeatDo( UINT, UINT, DWORD, DWORD, DWORD );  
-void TransferRepeatCreate( LPCTSTR, DWORD );
+void TransferRepeatCreate( LPCSTR, DWORD );
 void TransferRepeatDestroy( void );
-void TransferFileTextStart( LPCTSTR );
+void TransferFileTextStart( LPCSTR );
 void TransferFileTextEnd( void );
 // void TransferFileText( LPCTSTR );
 void ReceiveFileText( LPCTSTR );
@@ -235,14 +235,14 @@ void CheckModemStatus( BOOL );
 void ReportCommError( void );
 void ReportComStat( COMSTAT );
 void StatusMessage( void );
-void UpdateStatus( TCHAR * );
+void UpdateStatus( char * );
 void CheckComStat( BOOL );
 
 //
 //  Writer heap functions
 //
-BOOL WriterAddNewNode( DWORD, DWORD, TCHAR, TCHAR *, HANDLE, HWND );
-BOOL WriterAddExistingNode( PWRITEREQUEST, DWORD, DWORD, TCHAR, TCHAR *, HANDLE, HWND );
-BOOL WriterAddNewNodeTimeout( DWORD, DWORD, TCHAR, TCHAR *, HANDLE, HWND, DWORD );
-BOOL WriterAddFirstNodeTimeout( DWORD, DWORD, TCHAR, TCHAR *, HANDLE, HWND, DWORD );
+BOOL WriterAddNewNode( DWORD, DWORD, char, char *, HANDLE, HWND );
+BOOL WriterAddExistingNode( PWRITEREQUEST, DWORD, DWORD, char, char *, HANDLE, HWND );
+BOOL WriterAddNewNodeTimeout( DWORD, DWORD, char, char *, HANDLE, HWND, DWORD );
+BOOL WriterAddFirstNodeTimeout( DWORD, DWORD, char, char *, HANDLE, HWND, DWORD );
 

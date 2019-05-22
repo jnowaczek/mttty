@@ -27,7 +27,7 @@
 	GetbTTYItem         - returns a BYTE value from a dialog control
 	ToolbarProc         - Dialog procedure for Settings Dialog
 	InitHexControl      - Places a byte value into edit controls of a dialog
-	GetHexControl       - returns hex data from a control and converts to a TCHAR
+	GetHexControl       - returns hex data from a control and converts to a char
 	InitCommEventsDlg   - Initializes Comm Events Dialog
 	SaveCommEventsDlg   - Saves comm events flag if changed
 	CommEventsProc      - Dialog procedure for Comm Events Dialog
@@ -41,6 +41,7 @@
 
 -----------------------------------------------------------------------------*/
 
+#define _CRT_SECURE_NO_WARNINGS		/* PDP8 suppress non-secure warnings   */
 #include <windows.h>
 #include <stdio.h>
 #include "mttty.h"
@@ -50,13 +51,13 @@
 /*
     Prototypes for functions called only within this file
 */
-void FillComboBox( HWND, TCHAR ** szString, DWORD *, WORD, DWORD );
+void FillComboBox( HWND, char ** szString, DWORD *, WORD, DWORD );
 BOOL SettingsDlgInit( HWND );
-DWORD GetdwTTYItem( HWND, int, TCHAR **, DWORD *, int );
-BYTE GetbTTYItem( HWND, int, TCHAR **, DWORD *, int);
+DWORD GetdwTTYItem( HWND, int, char **, DWORD *, int );
+BYTE GetbTTYItem( HWND, int, char **, DWORD *, int);
 BOOL CALLBACK CommEventsProc( HWND, UINT, WPARAM, LPARAM );
 BOOL CALLBACK ToolbarProc( HWND, UINT, WPARAM, LPARAM );
-void InitHexControl(HWND, WORD, WORD, TCHAR);
+void InitHexControl(HWND, WORD, WORD, char);
 char GetHexControl(HWND, WORD, WORD);
 void SaveCommEventsDlg( HWND );
 void InitCommEventsDlg( HWND, DWORD );
@@ -76,11 +77,11 @@ BOOL CALLBACK GetADWORDProc( HWND, UINT, WPARAM, LPARAM );
 
 DCB dcbTemp;
 
-TCHAR * szBaud[] = {
-	    _T("110"), _T("300"), _T("600"), _T("1200"), _T("2400"), 
-		_T("4800"), _T("9600"), _T("14400"), _T("19200"),
-		_T("38400"), _T("56000"), _T("57600"), _T("115200"),
-		_T("128000"), _T("256000")
+char * szBaud[] = {
+	    "110", "300", "600", "1200", "2400", 
+	    "4800", "9600", "14400", "19200",
+	    "38400", "56000", "57600", "115200", 
+	    "128000", "256000"
 	};
 
 DWORD   BaudTable[] =  {
@@ -89,19 +90,19 @@ DWORD   BaudTable[] =  {
 	    CBR_56000, CBR_57600, CBR_115200, CBR_128000, CBR_256000
 	} ;
 
-TCHAR * szParity[] =   {   _T("None"), _T("Even"), _T("Odd"), _T("Mark"), _T("Space") };
+char * szParity[] =   {   "None", "Even", "Odd", "Mark", "Space" };
 
 DWORD   ParityTable[] = {  NOPARITY, EVENPARITY, ODDPARITY, MARKPARITY, SPACEPARITY  } ;
 
-TCHAR * szStopBits[] =  {  _T("1"), _T("1.5"), _T("2")  };
+char * szStopBits[] =  {  "1", "1.5", "2"  };
 
 DWORD   StopBitsTable[] =  { ONESTOPBIT, ONE5STOPBITS, TWOSTOPBITS } ;
 
-TCHAR * szDTRControlStrings[] = { _T("Enable"), _T("Disable"), _T("Handshake") };
+char * szDTRControlStrings[] = { "Enable", "Disable", "Handshake" };
 
 DWORD   DTRControlTable[] = { DTR_CONTROL_ENABLE, DTR_CONTROL_DISABLE, DTR_CONTROL_HANDSHAKE };
 
-TCHAR * szRTSControlStrings[] = { _T("Enable"), _T("Disable"), _T("Handshake"), _T("Toggle") };
+char * szRTSControlStrings[] = { "Enable", "Disable", "Handshake", "Toggle" };
 
 DWORD   RTSControlTable[] = {   RTS_CONTROL_ENABLE, RTS_CONTROL_DISABLE, 
 				RTS_CONTROL_HANDSHAKE, RTS_CONTROL_TOGGLE };
@@ -129,7 +130,7 @@ void OpenSettingsToolbar(HWND hWnd)
     ghWndToolbarDlg = CreateDialog(ghInst, MAKEINTRESOURCE(IDD_TOOLBARSETTINGS), hWnd, ToolbarProc);
 
     if (ghWndToolbarDlg == NULL)
-	ErrorReporter(_T("CreateDialog (Toolbar Dialog)"));
+	ErrorReporter("CreateDialog (Toolbar Dialog)");
 
     return;
 }
@@ -283,9 +284,8 @@ void UpdateTTYInfo()
 				       sizeof(StopBitsTable)/sizeof(StopBitsTable[0]));
 
     LOCALECHO(TTYInfo) = IsDlgButtonChecked(ghWndToolbarDlg, IDC_LOCALECHOCHK);
-    BYTESIZE(TTYInfo) = GetDlgItemInt(ghWndToolbarDlg, IDC_DATABITSCOMBO, NULL, FALSE);
+    BYTESIZE(TTYInfo) = (BYTE)GetDlgItemInt(ghWndToolbarDlg, IDC_DATABITSCOMBO, NULL, FALSE);   /* PDP8 */
     NEWLINE(TTYInfo) = IsDlgButtonChecked(ghWndToolbarDlg, IDC_LFBTN);
-	CR2CRLF(TTYInfo) = IsDlgButtonChecked(ghWndToolbarDlg, IDC_CRBTN);
     AUTOWRAP(TTYInfo) = IsDlgButtonChecked(ghWndToolbarDlg, IDC_AUTOWRAPCHK);
     DISPLAYERRORS(TTYInfo) = IsDlgButtonChecked(ghWndToolbarDlg, IDC_DISPLAYERRORSCHK);
 
@@ -323,7 +323,7 @@ BOOL UpdateConnection()
     // get current DCB settings
     //
     if (!GetCommState(COMDEV(TTYInfo), &dcb))
-	ErrorReporter(_T("GetCommState"));
+	ErrorReporter("GetCommState");
 
     //
     // update DCB rate, byte size, parity, and stop bits size
@@ -367,13 +367,13 @@ BOOL UpdateConnection()
     // set new state
     //
     if (!SetCommState(COMDEV(TTYInfo), &dcb))
-	ErrorReporter(_T("SetCommState"));
+	ErrorReporter("SetCommState");
 
     //
     // set new timeouts
     //
     if (!SetCommTimeouts(COMDEV(TTYInfo), &(TIMEOUTSNEW(TTYInfo))))
-	ErrorReporter(_T("SetCommTimeouts"));
+	ErrorReporter("SetCommTimeouts");
 
     return TRUE;
 }
@@ -381,7 +381,7 @@ BOOL UpdateConnection()
 
 /*-----------------------------------------------------------------------------
 
-FUNCTION: FillComboBox(HWND, TCHAR **, DWORD *, WORD, DWORD)
+FUNCTION: FillComboBox(HWND, char **, DWORD *, WORD, DWORD)
 
 PURPOSE: Populates dialog controls with proper strings
 
@@ -399,7 +399,7 @@ HISTORY:   Date:      Author:     Comment:
 	   10/27/95   AllenD      Modified for MTTTY
 
 -----------------------------------------------------------------------------*/
-void FillComboBox( HWND hCtrlWnd, TCHAR ** szString,
+void FillComboBox( HWND hCtrlWnd, char ** szString,
 			DWORD * npTable, WORD wTableLen, DWORD dwCurrentSetting )
 {
     WORD wCount, wPosition ;
@@ -473,17 +473,17 @@ HISTORY:   Date:      Author:     Comment:
 -----------------------------------------------------------------------------*/
 BOOL SettingsDlgInit( HWND hDlg )
 {
-    TCHAR szBuffer[ MAXLEN_TEMPSTR ], szTemp[ MAXLEN_TEMPSTR ] ;
+    char szBuffer[ MAXLEN_TEMPSTR ], szTemp[ MAXLEN_TEMPSTR ] ;
     WORD wCount, wMaxCOM, wPosition ;
 
     wMaxCOM = MAXPORTS ;
-    _tcscpy_s(szTemp, MAXLEN_TEMPSTR, _T("COM"));
+    strcpy(szTemp, "COM");
 
     //
     // fill port combo box and make initial selection
     //
     for (wCount = 0; wCount < wMaxCOM; wCount++) {
-	wsprintf( szBuffer, _T("%s%d"), (LPSTR) szTemp, wCount + 1 ) ;
+	wsprintf( szBuffer, "%s%d", (LPSTR) szTemp, wCount + 1 ) ;
 	SendDlgItemMessage( hDlg, IDC_PORTCOMBO, CB_ADDSTRING, 0,
 			    (LPARAM) (LPSTR) szBuffer ) ;
     }
@@ -505,7 +505,7 @@ BOOL SettingsDlgInit( HWND hDlg )
     // fill data bits combo box and make initial selection
     //
     for (wCount = 5; wCount < 9; wCount++) {
-	wsprintf( szBuffer, _T("%d"), wCount ) ;
+	wsprintf( szBuffer, "%d", wCount ) ;
 	wPosition = LOWORD( SendDlgItemMessage( hDlg, IDC_DATABITSCOMBO,
 						CB_ADDSTRING, 0,
 						(LPARAM) (LPSTR) szBuffer ) ) ;
@@ -536,6 +536,7 @@ BOOL SettingsDlgInit( HWND hDlg )
     //
     // set check marks based on TTY data
     //
+    CheckDlgButton( hDlg, IDC_PDP8MSBCHK, PDP8MSB( TTYInfo ) );
     CheckDlgButton( hDlg, IDC_LOCALECHOCHK, LOCALECHO( TTYInfo ) ) ;
     CheckDlgButton( hDlg, IDC_DISPLAYERRORSCHK, DISPLAYERRORS( TTYInfo ) );
     CheckDlgButton( hDlg, IDC_LFBTN, NEWLINE( TTYInfo ) );
@@ -553,7 +554,7 @@ BOOL SettingsDlgInit( HWND hDlg )
 
 /*-----------------------------------------------------------------------------
 
-FUNCTION: GetdwTTYItem(HWND, int, TCHAR **, DWORD *, int)
+FUNCTION: GetdwTTYItem(HWND, int, char **, DWORD *, int)
 
 PURPOSE: Returns a DWORD item from a dialog control
 
@@ -572,10 +573,10 @@ HISTORY:   Date:      Author:     Comment:
 	   10/27/95   AllenD      Wrote it
 
 -----------------------------------------------------------------------------*/
-DWORD GetdwTTYItem(HWND hDlg, int idControl, TCHAR ** szString, DWORD * pTable, int iNumItems)
+DWORD GetdwTTYItem(HWND hDlg, int idControl, char ** szString, DWORD * pTable, int iNumItems)
 {
     int i;
-    TCHAR szItem[MAXLEN_TEMPSTR];
+    char szItem[MAXLEN_TEMPSTR];
 
     //
     // Get current selection (a string)
@@ -587,7 +588,7 @@ DWORD GetdwTTYItem(HWND hDlg, int idControl, TCHAR ** szString, DWORD * pTable, 
 	If index is found, then return the DWORD item from table.
     */ 
     for (i = 0; i < iNumItems; i++) {
-	if (_tcscmp(szString[i], szItem) == 0)
+	if (strcmp(szString[i], szItem) == 0)
 	    return pTable[i];
     }
 
@@ -596,7 +597,7 @@ DWORD GetdwTTYItem(HWND hDlg, int idControl, TCHAR ** szString, DWORD * pTable, 
 
 /*-----------------------------------------------------------------------------
 
-FUNCTION: GetbTTYItem(HWND, int, TCHAR **, DWORD *, int)
+FUNCTION: GetbTTYItem(HWND, int, char **, DWORD *, int)
 
 PURPOSE: Returns a BYTE item from a dialog control
 
@@ -615,10 +616,10 @@ HISTORY:   Date:      Author:     Comment:
 	   10/27/95   AllenD      Wrote it
 
 -----------------------------------------------------------------------------*/
-BYTE GetbTTYItem(HWND hDlg, int idControl, TCHAR ** szString, DWORD * pTable, int iNumItems)
+BYTE GetbTTYItem(HWND hDlg, int idControl, char ** szString, DWORD * pTable, int iNumItems)
 {
     int i;
-    TCHAR szItem[MAXLEN_TEMPSTR];
+    char szItem[MAXLEN_TEMPSTR];
 
     //
     // Get current selection (a string)
@@ -630,7 +631,7 @@ BYTE GetbTTYItem(HWND hDlg, int idControl, TCHAR ** szString, DWORD * pTable, in
 	If index is found, then return the BYTE item from table.
     */ 
     for (i = 0; i < iNumItems; i++) {
-	if (_tcscmp(szString[i], szItem) == 0)
+	if (strcmp(szString[i], szItem) == 0)
 	    return (BYTE) pTable[i];
     }
     
@@ -662,6 +663,8 @@ HISTORY:   Date:      Author:     Comment:
 BOOL CALLBACK ToolbarProc(HWND hWndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     BOOL fRet = FALSE;
+
+	UNREFERENCED_PARAMETER( lParam );      /* PDP8 */
 
     switch(uMsg)
     {
@@ -730,6 +733,11 @@ BOOL CALLBACK ToolbarProc(HWND hWndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			fRet = FALSE;
 			break;
 
+		    case IDC_PDP8MSBCHK:	/* put here so we don't reset port */			/* PDP8 */
+    			PDP8MSB(TTYInfo)   = IsDlgButtonChecked(ghWndToolbarDlg, IDC_PDP8MSBCHK);	/* PDP8 */
+			fRet = FALSE;
+			break;
+
 		    default:                    // some other control has been modified
 			if (CONNECTED(TTYInfo))
 			    UpdateTTYInfo();
@@ -747,7 +755,7 @@ BOOL CALLBACK ToolbarProc(HWND hWndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 /*-----------------------------------------------------------------------------
 
-FUNCTION: InitHexControl(HWND, WORD, WORD, TCHAR)
+FUNCTION: InitHexControl(HWND, WORD, WORD, char)
 
 PURPOSE: Places byte value into two edit boxes of the dialog
 
@@ -768,10 +776,10 @@ HISTORY:   Date:      Author:     Comment:
 	   10/27/95   AllenD      Wrote it
 
 -----------------------------------------------------------------------------*/
-void InitHexControl(HWND hdlg, WORD wIdNumberBox, WORD wIdCharBox, TCHAR chData)
+void InitHexControl(HWND hdlg, WORD wIdNumberBox, WORD wIdCharBox, char chData)
 {
-    TCHAR szFlagText[3] = {0};
-    TCHAR szFlagChar[2] = {0};
+    char szFlagText[3] = {0};
+    char szFlagChar[2] = {0};
     
     //
     // put character into char edit display control
@@ -782,7 +790,7 @@ void InitHexControl(HWND hdlg, WORD wIdNumberBox, WORD wIdCharBox, TCHAR chData)
     //
     // put flag character into hex numeric edit control
     //
-    wsprintf(szFlagText, _T("%02x"), 0x000000FF & chData);
+    wsprintf(szFlagText, "%02x", 0x000000FF & chData);
     SetDlgItemText(hdlg, wIdNumberBox, szFlagText);
 
     return;
@@ -816,9 +824,8 @@ HISTORY:   Date:      Author:     Comment:
 char GetHexControl(HWND hdlg, WORD wIdNumberBox, WORD wIdCharBox)
 {
     UINT uFlagValue;
-    TCHAR chFlagEntered[3] = {0};
+    char chFlagEntered[3] = {0};
     char chFlag[2] = {0};
-	TCHAR tchFlag[2] = { 0 };
     
     //
     // get numeric value from control
@@ -826,11 +833,10 @@ char GetHexControl(HWND hdlg, WORD wIdNumberBox, WORD wIdCharBox)
     if (0 == GetDlgItemText(hdlg, wIdNumberBox, chFlagEntered, 3))
 	return 0;
 
-    _tcscanf_s(chFlagEntered, 3, _T("%x"), &uFlagValue);
+    sscanf(chFlagEntered, "%x", &uFlagValue);
 
     chFlag[0] = (char) uFlagValue;
-	tchFlag[0] = (TCHAR)uFlagValue;
-    SetDlgItemText(hdlg, wIdCharBox, tchFlag); // display character
+    SetDlgItemText(hdlg, wIdCharBox, chFlag); // display character
 
     return chFlag[0];
 }
@@ -941,6 +947,8 @@ HISTORY:   Date:      Author:     Comment:
 -----------------------------------------------------------------------------*/
 BOOL CALLBACK CommEventsProc(HWND hdlg, UINT uMessage, WPARAM wparam, LPARAM lparam)
 {
+	UNREFERENCED_PARAMETER( lparam );      /* PDP8 */
+
     switch(uMessage)
     {
 	case WM_INITDIALOG:     // init controls
@@ -1023,8 +1031,8 @@ void SaveFlowControlDlg(HWND hdlg)
     //
     // update XON/XOFF limits if needed
     //
-    wNewXONLimit = GetDlgItemInt(hdlg, IDC_XONLIMITEDIT, &fSuccess, FALSE);
-    wNewXOFFLimit = GetDlgItemInt(hdlg, IDC_XOFFLIMITEDIT, &fSuccess, FALSE);
+    wNewXONLimit = (WORD)GetDlgItemInt(hdlg, IDC_XONLIMITEDIT, &fSuccess, FALSE);       /* PDP8 */
+    wNewXOFFLimit = (WORD)GetDlgItemInt(hdlg, IDC_XOFFLIMITEDIT, &fSuccess, FALSE);     /* PDP8 */
     if (wNewXOFFLimit != XOFFLIMIT(TTYInfo) ||
 	    wNewXONLimit != XONLIMIT(TTYInfo)) {
 	XOFFLIMIT(TTYInfo) = wNewXOFFLimit;
@@ -1223,6 +1231,8 @@ HISTORY:   Date:      Author:     Comment:
 -----------------------------------------------------------------------------*/
 BOOL CALLBACK FlowControlProc(HWND hdlg, UINT uMessage, WPARAM wparam, LPARAM lparam)
 {
+	UNREFERENCED_PARAMETER( lparam );      /* PDP8 */
+
     switch(uMessage)
     {
 	case WM_INITDIALOG:     // init controls
@@ -1325,12 +1335,12 @@ void SaveTimeoutsDlg(HWND hdlg)
 	//
 	if (CONNECTED(TTYInfo)) {
 	    if (!SetCommTimeouts(COMDEV(TTYInfo), &ctNew)) {
-		ErrorReporter(_T("SetCommTimeouts"));
+		ErrorReporter("SetCommTimeouts");
 		return;
 	    }
 	    
 	    if (!PurgeComm(COMDEV(TTYInfo), PURGE_TXABORT | PURGE_RXABORT))
-		ErrorReporter(_T("PurgeComm"));
+		ErrorReporter("PurgeComm");
 	}
 
 	//
@@ -1365,6 +1375,8 @@ HISTORY:   Date:      Author:     Comment:
 -----------------------------------------------------------------------------*/
 BOOL CALLBACK TimeoutsProc(HWND hdlg, UINT uMessage, WPARAM wparam, LPARAM lparam)
 {
+	UNREFERENCED_PARAMETER( lparam );      /* PDP8 */
+
     switch(uMessage)
     {
 	case WM_INITDIALOG:     // init controls
@@ -1398,6 +1410,8 @@ BOOL CALLBACK TimeoutsProc(HWND hdlg, UINT uMessage, WPARAM wparam, LPARAM lpara
 BOOL CALLBACK GetADWORDProc(HWND hDlg, UINT uMessage, WPARAM wParam, LPARAM lParam)
 {
     int iRet = 0;
+
+	UNREFERENCED_PARAMETER( lParam );      /* PDP8 */
 
     if (uMessage == WM_COMMAND) {
 	switch(LOWORD(wParam)) {

@@ -19,7 +19,7 @@
 
 -----------------------------------------------------------------------------*/
 
-
+#define _CRT_SECURE_NO_WARNINGS		/* PDP8 suppress non-secure warnings   */
 #include <windows.h>
 #include "mttty.h"
 
@@ -63,30 +63,26 @@ HISTORY:   Date:      Author:     Comment:
 UINT InitAboutDlg(HWND hDlg)
 {
     UINT uTimer;
-    TCHAR * szFormat = _T("Microsoft Windows %s\r\nVersion %d.%d\r\nBuild %d ");
-#ifdef CAN_USE_GETVERSIONINFOEX
-	TCHAR szVersion[256];
-#endif    
+    char * szFormat = "Microsoft Windows %s\r\nVersion %d.%d\r\nBuild %d ";
+    char szVersion[256];
+    
     /*    
         create timer and set initial icon id
     */
     uTimer = SetTimer(hDlg, 1, 100, NULL);
     if (uTimer == 0)
-        ErrorReporter(_T("SetTimer"));
-#ifdef CAN_USE_GETVERSIONINFOEX
-	StringCchPrintf(szVersion, 256, szFormat,
-                    gOSV.dwPlatformId == VER_PLATFORM_WIN32_NT ? _T("NT") : _T("95"),
+        ErrorReporter("SetTimer");
+    wsprintf(szVersion, szFormat, 
+                    gOSV.dwPlatformId == VER_PLATFORM_WIN32_NT ? "NT" : "95",
                     gOSV.dwMajorVersion, 
                     gOSV.dwMinorVersion, 
                     LOWORD( gOSV.dwBuildNumber ) );
 
-    if (_tcslen(gOSV.szCSDVersion))
-        _tcscat_s(szVersion, 256, gOSV.szCSDVersion);
+    if (strlen(gOSV.szCSDVersion))
+        strcat(szVersion, gOSV.szCSDVersion);
                             
     SetDlgItemText(hDlg, IDC_OSVERSIONINFO, szVersion);
-#else
-	SetDlgItemText(hDlg, IDC_OSVERSIONINFO, _T("API used to display OS information has been deprecated by MSFT"));
-#endif
+
     return uTimer;
 }
 
@@ -111,7 +107,9 @@ BOOL CALLBACK AboutDlgProc(HWND hdlg, UINT uMessage, WPARAM wparam, LPARAM lpara
     static UINT uTimer;
     static WORD wCurrentIconId;
 
-    switch(uMessage)
+	UNREFERENCED_PARAMETER( lparam );  /* PDP8 */
+
+	switch(uMessage)
     {
         case WM_INITDIALOG:
             uTimer = InitAboutDlg(hdlg);

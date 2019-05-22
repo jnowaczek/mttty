@@ -30,6 +30,7 @@
 
 -----------------------------------------------------------------------------*/
 
+#define _CRT_SECURE_NO_WARNINGS		/* PDP8 suppress non-secure warnings   */
 #include <windows.h>
 #include <commctrl.h>
 #include "mttty.h"
@@ -78,14 +79,14 @@ void GlobalInitialize()
     //
     ghStatusMessageEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
     if (ghStatusMessageEvent == NULL)
-        ErrorReporter(_T("CreateEvent (Status message event)"));
+        ErrorReporter("CreateEvent (Status message event)");
 
     //
     // thread exit event
     //
     ghThreadExitEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
     if (ghThreadExitEvent == NULL)
-        ErrorReporter(_T("CreateEvent (Thread exit event)"));        
+        ErrorReporter("CreateEvent (Thread exit event)");        
 
     //
     // used in file transfer status bar
@@ -151,15 +152,7 @@ HISTORY:   Date:      Author:     Comment:
 -----------------------------------------------------------------------------*/
 BOOL ClearTTYContents()
 {
-    // not going to work with multibyte chars
-	// FillMemory(SCREEN(TTYInfo), MAXCOLS*MAXROWS, ' ');
-	int r, c;
-	for (r = 0; r < MAXROWS; r++) {
-		for (c = 0; c < MAXCOLS; c++) {
-			SCREENCHAR(TTYInfo, c, r) = ' ';
-		}
-	}
-	
+    FillMemory(SCREEN(TTYInfo), MAXCOLS*MAXROWS, ' ');
     return TRUE;
 }
 
@@ -232,13 +225,14 @@ BOOL InitTTYInfo()
     //
     COMDEV( TTYInfo )        = NULL ;
     CONNECTED( TTYInfo )     = FALSE ;
+    PDP8MSB( TTYInfo )       = TRUE ;		/* PDP8 */
     LOCALECHO( TTYInfo )     = FALSE ;
     CURSORSTATE( TTYInfo )   = CS_HIDE ;
-    PORT( TTYInfo )          = 1 ;
-    BAUDRATE( TTYInfo )      = CBR_9600 ;
+    PORT( TTYInfo )          = 1 ;		/* PDP8 */
+    BAUDRATE( TTYInfo )      = CBR_19200 ;      /* PDP8 */
     BYTESIZE( TTYInfo )      = 8 ;
     PARITY( TTYInfo )        = NOPARITY ;
-    STOPBITS( TTYInfo )      = ONESTOPBIT ;
+    STOPBITS( TTYInfo )      = TWOSTOPBITS ;    /* PDP8 */
     AUTOWRAP( TTYInfo )      = TRUE;
     NEWLINE( TTYInfo )       = FALSE;
     XSIZE( TTYInfo )         = 0 ;
@@ -264,13 +258,13 @@ BOOL InitTTYInfo()
     //
     // Flow Control Settings
     //
-    DTRCONTROL( TTYInfo )    = DTR_CONTROL_ENABLE;
-    RTSCONTROL( TTYInfo )    = RTS_CONTROL_ENABLE;
+    DTRCONTROL( TTYInfo )    = DTR_CONTROL_ENABLE;	/* PDP8 to power current loop adapter */
+    RTSCONTROL( TTYInfo )    = RTS_CONTROL_DISABLE;     /* PDP8 to power current loop adapter */
     XONCHAR( TTYInfo )       = ASCII_XON;
     XOFFCHAR( TTYInfo )      = ASCII_XOFF;
     XONLIMIT( TTYInfo )      = 0;
     XOFFLIMIT( TTYInfo )     = 0;
-    CTSOUTFLOW( TTYInfo )    = FALSE;
+    CTSOUTFLOW( TTYInfo )    = TRUE;			/* PDP8 for READER RUN output control	*/
     DSROUTFLOW( TTYInfo )    = FALSE;
     DSRINFLOW( TTYInfo )     = FALSE;
     XONXOFFOUTFLOW(TTYInfo)  = FALSE;
@@ -286,11 +280,11 @@ BOOL InitTTYInfo()
     //
     // setup default font information
     // 
-    LFTTYFONT( TTYInfo ).lfHeight =         12 ;
+    LFTTYFONT( TTYInfo ).lfHeight =         20 ;	/* PDP8 */
     LFTTYFONT( TTYInfo ).lfWidth =          0 ;
     LFTTYFONT( TTYInfo ).lfEscapement =     0 ;
     LFTTYFONT( TTYInfo ).lfOrientation =    0 ;
-    LFTTYFONT( TTYInfo ).lfWeight =         0 ;
+    LFTTYFONT( TTYInfo ).lfWeight =         FW_BOLD;	/* PDP8 */
     LFTTYFONT( TTYInfo ).lfItalic =         0 ;
     LFTTYFONT( TTYInfo ).lfUnderline =      0 ;
     LFTTYFONT( TTYInfo ).lfStrikeOut =      0 ;
@@ -299,7 +293,7 @@ BOOL InitTTYInfo()
     LFTTYFONT( TTYInfo ).lfClipPrecision =  CLIP_DEFAULT_PRECIS ;
     LFTTYFONT( TTYInfo ).lfQuality =        DEFAULT_QUALITY ;
     LFTTYFONT( TTYInfo ).lfPitchAndFamily = FIXED_PITCH | FF_MODERN ;
-    _tcscpy_s( LFTTYFONT( TTYInfo ).lfFaceName, 32, _T("FixedSys")) ;
+    strcpy( LFTTYFONT( TTYInfo ).lfFaceName, "Courier New" ) ;      /* PDP8 */
 
     InitNewFont( LFTTYFONT(TTYInfo), RGB(0,0,0));
 
@@ -348,7 +342,7 @@ void StartThreads(void)
                           &dwReadStatId);
 
     if (READSTATTHREAD(TTYInfo) == NULL)
-        ErrorInComm(_T("CreateThread(Reader/Status)"));
+        ErrorInComm("CreateThread(Reader/Status)");
 
     WRITERTHREAD(TTYInfo) = 
             CreateThread( NULL, 
@@ -359,7 +353,7 @@ void StartThreads(void)
                           &dwWriterId );
                    
     if (WRITERTHREAD(TTYInfo) == NULL)
-        ErrorInComm(_T("CreateThread (Writer)"));
+        ErrorInComm("CreateThread (Writer)");
 
     return;
 }
@@ -397,7 +391,7 @@ HANDLE SetupCommPort()
                                       0);
 
     if (COMDEV(TTYInfo) == INVALID_HANDLE_VALUE) {   
-        ErrorReporter(_T("CreateFile"));
+        ErrorReporter("CreateFile");
         return NULL;
     }
 
@@ -405,7 +399,7 @@ HANDLE SetupCommPort()
     // Save original comm timeouts and set new ones
     //
     if (!GetCommTimeouts( COMDEV(TTYInfo), &(TIMEOUTSORIG(TTYInfo))))
-        ErrorReporter(_T("GetCommTimeouts"));
+        ErrorReporter("GetCommTimeouts");
 
     //
     // Set port state
@@ -421,7 +415,7 @@ HANDLE SetupCommPort()
     // raise DTR
     //
     if (!EscapeCommFunction(COMDEV(TTYInfo), SETDTR))
-        ErrorReporter(_T("EscapeCommFunction (SETDTR)"));
+        ErrorReporter("EscapeCommFunction (SETDTR)");
 
     //
     // start threads and set initial thread state to not done
@@ -478,15 +472,15 @@ DWORD WaitForThreads(DWORD dwTimeout)
         case WAIT_TIMEOUT:
             
             if (WaitForSingleObject(READSTATTHREAD(TTYInfo), 0) == WAIT_TIMEOUT)
-                OutputDebugString(_T("Reader/Status Thread didn't exit.\n\r"));
+                OutputDebugString("Reader/Status Thread didn't exit.\n\r");
 
             if (WaitForSingleObject(WRITERTHREAD(TTYInfo), 0) == WAIT_TIMEOUT)
-                OutputDebugString(_T("Writer Thread didn't exit.\n\r"));
+                OutputDebugString("Writer Thread didn't exit.\n\r");
 
             break;
 
         default:
-            ErrorReporter(_T("WaitForMultipleObjects"));
+            ErrorReporter("WaitForMultipleObjects");
             break;
     }
 
@@ -532,25 +526,25 @@ BOOL BreakDownCommPort()
             interfere with a new connection.  I must abort
             the entire program.
         */
-        ErrorHandler(_T("Error closing port."));
+        ErrorHandler("Error closing port.");
 
     //
     // lower DTR
     //
     if (!EscapeCommFunction(COMDEV(TTYInfo), CLRDTR))
-        ErrorReporter(_T("EscapeCommFunction(CLRDTR)"));
+        ErrorReporter("EscapeCommFunction(CLRDTR)");
 
     //
     // restore original comm timeouts
     //
     if (!SetCommTimeouts(COMDEV(TTYInfo),  &(TIMEOUTSORIG(TTYInfo))))
-        ErrorReporter(_T("SetCommTimeouts (Restoration to original)"));
+        ErrorReporter("SetCommTimeouts (Restoration to original)");
 
     //
     // Purge reads/writes, input buffer and output buffer
     //
     if (!PurgeComm(COMDEV(TTYInfo), PURGE_FLAGS))
-        ErrorReporter(_T("PurgeComm"));
+        ErrorReporter("PurgeComm");
 
     CloseHandle(COMDEV(TTYInfo));
     CloseHandle(READSTATTHREAD(TTYInfo));
@@ -578,5 +572,5 @@ BOOL DisconnectOK()
     if (!CONNECTED(TTYInfo))
         return TRUE;
     
-    return ((MessageBox(ghwndMain, _T("OK to Disconnect?"), gszPort, MB_YESNO)) == IDYES);
+    return ((MessageBox(ghwndMain, "OK to Disconnect?", gszPort, MB_YESNO)) == IDYES);
 }

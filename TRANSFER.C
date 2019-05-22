@@ -31,9 +31,9 @@
        
 -----------------------------------------------------------------------------*/
 
+#define _CRT_SECURE_NO_WARNINGS		/* PDP8 suppress non-secure warnings   */
 #include <windows.h>
 #include <commctrl.h>
-#include <malloc.h>
 #include "mttty.h"
 
 //
@@ -44,7 +44,7 @@ HANDLE hTransferAbortEvent;
 HANDLE hTransferThread;
 UINT   uTimerId;
 MMRESULT mmTimer = (MMRESULT)NULL;
-TCHAR * lpBuf;
+char * lpBuf;
 //
 // Prototypes for functions called only within this file
 //
@@ -108,7 +108,7 @@ void TransferRepeatCreate(LPCTSTR lpszFileName, DWORD dwFrequency)
     //
     // enable abort button and progress bar
     //
-    SetWindowText(GetDlgItem(ghWndStatusDlg, IDC_ABORTBTN), _T("Abort Tx"));
+    SetWindowText(GetDlgItem(ghWndStatusDlg, IDC_ABORTBTN), "Abort Tx");
     ShowWindow(GetDlgItem(ghWndStatusDlg, IDC_ABORTBTN), SW_SHOW);
 
     if (!GetTransferSizes(hFile, &dwPacketSize, &dwMaxPackets, &dwFileSize)) {
@@ -119,28 +119,28 @@ void TransferRepeatCreate(LPCTSTR lpszFileName, DWORD dwFrequency)
     // Allocate a buffer
     lpBuf = HeapAlloc(ghWriterHeap, 0, dwFileSize);
     if (lpBuf == NULL) {
-        ErrorReporter(_T("HeapAlloc (data block from writer heap).\r\nFile is too large"));
+        ErrorReporter("HeapAlloc (data block from writer heap).\r\nFile is too large");
         TransferRepeatDestroy();
         return;
     }
 
     // fill the buffer
     if (!ReadFile(hFile, lpBuf, dwFileSize, &dwRead, NULL)) {
-        ErrorReporter(_T("Can't read from file\n"));
+        ErrorReporter("Can't read from file\n");
         TransferRepeatDestroy();
     }
 
     if (dwRead != dwFileSize)
-        ErrorReporter(_T("Didn't read entire file\n"));
+        ErrorReporter("Didn't read entire file\n");
         
     mmTimer = timeSetEvent((UINT) dwFrequency, 10, TransferRepeatDo, dwRead, TIME_PERIODIC);
     if (mmTimer == (MMRESULT) NULL) {
-        ErrorReporter(_T("Could not create mm timer"));
+        ErrorReporter("Could not create mm timer");
         TransferRepeatDestroy();
     }
     else {
         REPEATING(TTYInfo) = TRUE;
-        OutputDebugString(_T("Timer setup.\n"));
+        OutputDebugString("Timer setup.\n");
     }
 
     return;
@@ -167,7 +167,7 @@ void TransferRepeatDestroy()
     if (mmTimer != (MMRESULT) NULL) {
         mmRes = timeKillEvent(mmTimer);
         if (mmRes != TIMERR_NOERROR)
-            ErrorReporter(_T("Can't kill mm timer"));
+            ErrorReporter("Can't kill mm timer");
         mmTimer = (MMRESULT) NULL;
     }
 
@@ -176,14 +176,14 @@ void TransferRepeatDestroy()
 
     // inform writer to abort all pending write requests
     if (!WriterAddFirstNodeTimeout(WRITE_ABORT, 0, 0, NULL, NULL, NULL, 500))
-        ErrorReporter(_T("Couldn't inform writer to abort sending."));
+        ErrorReporter("Couldn't inform writer to abort sending.");
 
     // free the buffer
     if (!HeapFree(ghWriterHeap, 0, lpBuf))
-        ErrorReporter(_T("HeapFree (data block from writer heap)"));
+        ErrorReporter("HeapFree (data block from writer heap)");
     
     REPEATING(TTYInfo) = FALSE;
-    OutputDebugString(_T("Repeated transfer destroyed.\r\n"));
+    OutputDebugString("Repeated transfer destroyed.\r\n");
 
     //
     // enable transfer menu
@@ -219,7 +219,12 @@ void CALLBACK TransferRepeatDo( UINT uTimerId,
                                         DWORD dwRes1, 
                                         DWORD dwRes2)
 {
-    if (!WriterAddNewNodeTimeout(WRITE_BLOCK, dwFileSize, 0, lpBuf, 0, 0, 10))
+	UNREFERENCED_PARAMETER( uTimerId );    /* PDP8 */
+	UNREFERENCED_PARAMETER( uRes );        /* PDP8 */
+	UNREFERENCED_PARAMETER( dwRes1 );      /* PDP8 */
+	UNREFERENCED_PARAMETER( dwRes2 );      /* PDP8 */
+
+	if (!WriterAddNewNodeTimeout(WRITE_BLOCK, dwFileSize, 0, lpBuf, 0, 0, 10))
         PostMessage(ghwndMain, WM_COMMAND, ID_TRANSFER_ABORTSENDING, MAKELPARAM(IDC_ABORTBTN, 0) );
     
     return;
@@ -267,21 +272,21 @@ void TransferFileTextStart(LPCTSTR lpstrFileName)
     // enable abort button and progress bar
     //
     gfAbortTransfer = FALSE;
-    SetWindowText(GetDlgItem(ghWndStatusDlg, IDC_ABORTBTN), _T("Abort Tx"));
+    SetWindowText(GetDlgItem(ghWndStatusDlg, IDC_ABORTBTN), "Abort Tx");
     ShowWindow(GetDlgItem(ghWndStatusDlg, IDC_ABORTBTN), SW_SHOW);
     ShowWindow(GetDlgItem(ghWndStatusDlg, IDC_TRANSFERPROGRESS), SW_SHOW);
 
     // start the transfer thread
     hTransferAbortEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
     if (hTransferAbortEvent == NULL)
-        ErrorReporter(_T("CreateEvent(Transfer Abort Event)"));
+        ErrorReporter("CreateEvent(Transfer Abort Event)");
 
     hTransferThread = CreateThread(NULL, 0, 
                                 TransferThreadProc, 
                                 (LPVOID) hFile, 0, &dwThreadId);
 
     if (hTransferThread == NULL) {
-        ErrorReporter(_T("CreateThread (Transfer Thread)"));
+        ErrorReporter("CreateThread (Transfer Thread)");
         TransferFileTextEnd();
     }
     else
@@ -310,14 +315,14 @@ void TransferFileTextEnd()
     // stop the transfer thread
     SetEvent(hTransferAbortEvent);
 
-    OutputDebugString(_T("Waiting for transfer thread...\n"));
+    OutputDebugString("Waiting for transfer thread...\n");
 
     if (WaitForSingleObject(hTransferThread, 3000) != WAIT_OBJECT_0) {
-        ErrorReporter(_T("TransferThread didn't stop."));
+        ErrorReporter("TransferThread didn't stop.");
         TerminateThread(hTransferThread, 0);
     }
     else
-        OutputDebugString(_T("Transfer thread exited\n"));
+        OutputDebugString("Transfer thread exited\n");
 
     CloseHandle(hTransferAbortEvent);
     CloseHandle(hTransferThread);
@@ -394,7 +399,7 @@ void ReceiveFileText(LPCTSTR lpstrFileName)
     // enable abort button and progress bar
     //
     gfAbortTransfer = FALSE;
-    SetWindowText(GetDlgItem(ghWndStatusDlg, IDC_ABORTBTN), _T("Close Capture"));
+    SetWindowText(GetDlgItem(ghWndStatusDlg, IDC_ABORTBTN), "Close Capture");
     ShowWindow(GetDlgItem(ghWndStatusDlg, IDC_ABORTBTN), SW_SHOW);
     ShowWindow(GetDlgItem(ghWndStatusDlg, IDC_TRANSFERPROGRESS), SW_SHOW);
 
@@ -450,7 +455,7 @@ HANDLE OpenTheFile(LPCTSTR lpFName)
     hTemp = CreateFile(lpFName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0,NULL);
 
     if (hTemp == INVALID_HANDLE_VALUE)
-        ErrorReporter(_T("CreateFile"));
+        ErrorReporter("CreateFile");
 
     return hTemp;
 }
@@ -472,10 +477,10 @@ HANDLE CreateTheFile(LPCTSTR lpFName)
 {
     HANDLE hTemp;
 
-    hTemp = CreateFile(lpFName, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, 0,NULL);
+    hTemp = CreateFile(lpFName, GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_ALWAYS, 0,NULL);   /* PDP8 */
 
     if (hTemp == INVALID_HANDLE_VALUE)
-        ErrorReporter(_T("CreateFile"));
+        ErrorReporter("CreateFile");
 
     return hTemp;
 }
@@ -510,12 +515,12 @@ BOOL GetTransferSizes(HANDLE hFile, DWORD * pdwDataPacketSize, DWORD * pdwNumPac
     BY_HANDLE_FILE_INFORMATION fi;
 
     if (!GetFileInformationByHandle(hFile, &fi)) {
-        ErrorReporter(_T("GetFileInformationByHandle"));
+        ErrorReporter("GetFileInformationByHandle");
         return FALSE;
     }
     else {
         if (fi.nFileSizeHigh) {
-            MessageBox(ghwndMain, _T("File is too large to transfer."), _T("File Transfer Error"), MB_OK);
+            MessageBox(ghwndMain, "File is too large to transfer.", "File Transfer Error", MB_OK);
             return FALSE;
         }
 
@@ -527,7 +532,7 @@ BOOL GetTransferSizes(HANDLE hFile, DWORD * pdwDataPacketSize, DWORD * pdwNumPac
         *pdwNumPackets = *pdwFileSize / *pdwDataPacketSize;
 
         if (*pdwNumPackets > 65534) {
-            MessageBox(ghwndMain, _T("File is too large for buffer size."), _T("File Transfer Error"), MB_OK);
+            MessageBox(ghwndMain, "File is too large for buffer size.", "File Transfer Error", MB_OK);
             return FALSE;
         }
     }
@@ -551,7 +556,7 @@ HISTORY:   Date:      Author:     Comment:
 -----------------------------------------------------------------------------*/
 void ShowTransferStatistics(DWORD dwEnd, DWORD dwStart, DWORD dwBytesTransferred)
 {
-    TCHAR szTemp[100];
+    char szTemp[100];
     DWORD dwSecs;
 
     dwSecs = (dwEnd - dwStart) / 1000;
@@ -560,7 +565,7 @@ void ShowTransferStatistics(DWORD dwEnd, DWORD dwStart, DWORD dwBytesTransferred
     // display only if dwSecs != 0; if dwSecs == 0, then divide by zero occurs.
     //
     if (dwSecs != 0) {
-        wsprintf(szTemp, _T("Bytes transferred: %d\r\nBytes/Second: %d\r\n"), dwBytesTransferred, dwBytesTransferred / dwSecs);
+        wsprintf(szTemp, "Bytes transferred: %d\r\nBytes/Second: %d\r\n", dwBytesTransferred, dwBytesTransferred / dwSecs);
         UpdateStatus(szTemp);
     }
 
@@ -638,7 +643,10 @@ void CaptureFile(HANDLE hFile, HWND hWndProgress)
     UINT uMsgResult;
     gdwReceiveState = RECEIVE_CAPTURED;
 
-    while ( !gfAbortTransfer ) {
+	UNREFERENCED_PARAMETER( hFile );           /* PDP8 */
+	UNREFERENCED_PARAMETER( hWndProgress );    /* PDP8 */
+	
+	while ( !gfAbortTransfer ) {
 
         uMsgResult = CheckForMessages();
 
@@ -684,8 +692,8 @@ DWORD WINAPI TransferThreadProc(LPVOID lpV)
     DWORD  dwStartTime;
     HWND   hWndProgress;
     HANDLE hFileHandle;
-    HANDLE hDataHeap = NULL;
-    BOOL fStarted = TRUE;
+    HANDLE hDataHeap;
+    /* BOOL fStarted = TRUE;    PDP8    */
     BOOL fAborting = FALSE;
 
     hFileHandle = (HANDLE) lpV;
@@ -701,12 +709,13 @@ DWORD WINAPI TransferThreadProc(LPVOID lpV)
     }
 
     // set up transfer heaps
-    if (!fAborting) {
+	hDataHeap = NULL;	/* PDP8 to prevent 'potentially uninitialized local variable'    */
+	if (!fAborting) {
         SYSTEM_INFO sysInfo;
         GetSystemInfo(&sysInfo);
         hDataHeap = HeapCreate(0, sysInfo.dwPageSize * 2, sysInfo.dwPageSize * 10);
         if (hDataHeap == NULL) {
-            ErrorReporter(_T("HeapCreate (Data Heap)"));
+            ErrorReporter("HeapCreate (Data Heap)");
             fAborting = TRUE;
         }
     }
@@ -717,7 +726,7 @@ DWORD WINAPI TransferThreadProc(LPVOID lpV)
             fAborting = TRUE;
     }
 
-    OutputDebugString(_T("Xfer: About to start sending data\n"));
+    OutputDebugString("Xfer: About to start sending data\n");
 
     // Get Transfer Start Time
     dwStartTime = GetTickCount();
@@ -726,7 +735,7 @@ DWORD WINAPI TransferThreadProc(LPVOID lpV)
         fAborting = TRUE;
 
     while (!fAborting) {
-        TCHAR * lpDataBuf;
+        char * lpDataBuf;
         PWRITEREQUEST pWrite;
 
         // transfer file, loop until all blocks of file have been read
@@ -759,7 +768,7 @@ DWORD WINAPI TransferThreadProc(LPVOID lpV)
                 fRes = HeapFree(hDataHeap, 0, lpDataBuf);
                 LeaveCriticalSection(&gcsDataHeap);
                 if (!fRes)
-                    ErrorReporter(_T("HeapFree (Data block)"));
+                    ErrorReporter("HeapFree (Data block)");
             }
 
             if (pWrite) {
@@ -767,10 +776,10 @@ DWORD WINAPI TransferThreadProc(LPVOID lpV)
                 fRes = HeapFree(ghWriterHeap, 0, pWrite);
                 LeaveCriticalSection(&gcsWriterHeap);
                 if (!fRes)
-                    ErrorReporter(_T("HeapFree (Writer block)"));
+                    ErrorReporter("HeapFree (Writer block)");
             }
 
-            OutputDebugString(_T("Xfer: A heap is full.  Waiting...\n"));
+            OutputDebugString("Xfer: A heap is full.  Waiting...\n");
 
             // wait a little
             // check for abort during the wait
@@ -783,12 +792,12 @@ DWORD WINAPI TransferThreadProc(LPVOID lpV)
             fAborting = TRUE;
     }
 
-    OutputDebugString(_T("Xfer: Done sending packets.\n"));
+    OutputDebugString("Xfer: Done sending packets.\n");
 
     if (fAborting) {
         // inform writer that transfer is aborting
 
-        OutputDebugString(_T("Xfer: Sending Abort Packet to writer\n"));
+        OutputDebugString("Xfer: Sending Abort Packet to writer\n");
         WriterAddFirstNodeTimeout(WRITE_ABORT, dwFileSize, 0, NULL, NULL, NULL, 500);
     }
     else
@@ -803,7 +812,7 @@ DWORD WINAPI TransferThreadProc(LPVOID lpV)
         hEvents[0] = ghTransferCompleteEvent;
         hEvents[1] = hTransferAbortEvent;
 
-        OutputDebugString(_T("Xfer: Waiting for transfer complete signal from writer\n"));
+        OutputDebugString("Xfer: Waiting for transfer complete signal from writer\n");
         do {
             ResetEvent(hTransferAbortEvent);
 
@@ -811,25 +820,25 @@ DWORD WINAPI TransferThreadProc(LPVOID lpV)
             switch(dwRes) {
             case WAIT_OBJECT_0:      
                 fTransferComplete = TRUE;   
-                OutputDebugString(_T("Transfer complete signal rec'd\n"));
+                OutputDebugString("Transfer complete signal rec'd\n");
                 break;
             case WAIT_OBJECT_0 + 1:  
                 fAborting = TRUE;           
-                OutputDebugString(_T("Transfer abort signal rec'd\n"));
-                OutputDebugString(_T("Xfer: Sending Abort Packet to writer\n"));
+                OutputDebugString("Transfer abort signal rec'd\n");
+                OutputDebugString("Xfer: Sending Abort Packet to writer\n");
                 if (!WriterAddFirstNodeTimeout(WRITE_ABORT, dwFileSize, 0, NULL, NULL, NULL, 500))
-                    ErrorReporter(_T("Can't add abort packet\n"));
+                    ErrorReporter("Can't add abort packet\n");
                 break;
             case WAIT_TIMEOUT:                                   break;
             default:
-                ErrorReporter(_T("WaitForMultipleObjects(Transfer Complete Event and Transfer Abort Event)"));
+                ErrorReporter("WaitForMultipleObjects(Transfer Complete Event and Transfer Abort Event)");
                 fTransferComplete = TRUE;
                 break;
             }
         } while (!fTransferComplete);
     }
 
-    OutputDebugString(_T("Xfer: transfer complete\n"));
+    OutputDebugString("Xfer: transfer complete\n");
 
     // report statistics
     if (!fAborting)
@@ -841,7 +850,7 @@ DWORD WINAPI TransferThreadProc(LPVOID lpV)
     // break down heaps
     if (hDataHeap != NULL) {
         if (!HeapDestroy(hDataHeap))
-            ErrorReporter(_T("HeapDestroy (data heap)"));
+            ErrorReporter("HeapDestroy (data heap)");
     }
 
     // If I am done without user intervention, then post the

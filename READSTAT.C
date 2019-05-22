@@ -18,6 +18,7 @@
  
 -----------------------------------------------------------------------------*/
 
+#define _CRT_SECURE_NO_WARNINGS		/* PDP8 suppress non-secure warnings   */
 #include <windows.h>
 #include "mttty.h"
 
@@ -68,11 +69,11 @@ DWORD WINAPI ReaderAndStatusProc(LPVOID lpV)
     //
     osReader.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
     if (osReader.hEvent == NULL)
-        ErrorInComm(_T("CreateEvent (Reader Event)"));
+        ErrorInComm("CreateEvent (Reader Event)");
 
     osStatus.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
     if (osStatus.hEvent == NULL)
-        ErrorInComm(_T("CreateEvent (Status Event)"));
+        ErrorInComm("CreateEvent (Status Event)");
 
     //
     // We want to detect the following events:
@@ -107,13 +108,13 @@ DWORD WINAPI ReaderAndStatusProc(LPVOID lpV)
         if (!fWaitingOnRead) {
             if (!ReadFile(COMDEV(TTYInfo), lpBuf, AMOUNT_TO_READ, &dwRead, &osReader)) {
                 if (GetLastError() != ERROR_IO_PENDING)	  // read not delayed?
-                    ErrorInComm(_T("ReadFile in ReaderAndStatusProc"));
+                    ErrorInComm("ReadFile in ReaderAndStatusProc");
 
                 fWaitingOnRead = TRUE;
             }
             else {    // read completed immediately
                 if ((dwRead != MAX_READ_BUFFER) && SHOWTIMEOUTS(TTYInfo))
-                    UpdateStatus(_T("Read timed out immediately.\r\n"));
+                    UpdateStatus("Read timed out immediately.\r\n");
 
                 if (dwRead)
                     OutputABuffer(hTTY, lpBuf, dwRead);
@@ -128,7 +129,7 @@ DWORD WINAPI ReaderAndStatusProc(LPVOID lpV)
         if (dwStoredFlags != EVENTFLAGS(TTYInfo)) {
             dwStoredFlags = EVENTFLAGS(TTYInfo);
             if (!SetCommMask(COMDEV(TTYInfo), dwStoredFlags))
-                ErrorReporter(_T("SetCommMask"));
+                ErrorReporter("SetCommMask");
         }
 
         //
@@ -146,7 +147,7 @@ DWORD WINAPI ReaderAndStatusProc(LPVOID lpV)
             else {
                 if (!WaitCommEvent(COMDEV(TTYInfo), &dwCommEvent, &osStatus)) {
                     if (GetLastError() != ERROR_IO_PENDING)	  // Wait not delayed?
-                        ErrorReporter(_T("WaitCommEvent"));
+                        ErrorReporter("WaitCommEvent");
                     else
                         fWaitingOnStat = TRUE;
                 }
@@ -169,13 +170,13 @@ DWORD WINAPI ReaderAndStatusProc(LPVOID lpV)
                 case WAIT_OBJECT_0:
                     if (!GetOverlappedResult(COMDEV(TTYInfo), &osReader, &dwRead, FALSE)) {
                         if (GetLastError() == ERROR_OPERATION_ABORTED)
-                            UpdateStatus(_T("Read aborted\r\n"));
+                            UpdateStatus("Read aborted\r\n");
                         else
-                            ErrorInComm(_T("GetOverlappedResult (in Reader)"));
+                            ErrorInComm("GetOverlappedResult (in Reader)");
                     }
                     else {      // read completed successfully
                         if ((dwRead != MAX_READ_BUFFER) && SHOWTIMEOUTS(TTYInfo))
-                            UpdateStatus(_T("Read timed out overlapped.\r\n"));
+                            UpdateStatus("Read timed out overlapped.\r\n");
 
                         if (dwRead)
                             OutputABuffer(hTTY, lpBuf, dwRead);
@@ -190,9 +191,9 @@ DWORD WINAPI ReaderAndStatusProc(LPVOID lpV)
                 case WAIT_OBJECT_0 + 1: 
                     if (!GetOverlappedResult(COMDEV(TTYInfo), &osStatus, &dwOvRes, FALSE)) {
                         if (GetLastError() == ERROR_OPERATION_ABORTED)
-                            UpdateStatus(_T("WaitCommEvent aborted\r\n"));
+                            UpdateStatus("WaitCommEvent aborted\r\n");
                         else
-                            ErrorInComm(_T("GetOverlappedResult (in Reader)"));
+                            ErrorInComm("GetOverlappedResult (in Reader)");
                     }
                     else       // status check completed successfully
                         ReportStatusEvent(dwCommEvent);
@@ -233,7 +234,7 @@ DWORD WINAPI ReaderAndStatusProc(LPVOID lpV)
                     break;                       
 
                 default:
-                    ErrorReporter(_T("WaitForMultipleObjects(Reader & Status handles)"));
+                    ErrorReporter("WaitForMultipleObjects(Reader & Status handles)");
                     break;
             }
         }
